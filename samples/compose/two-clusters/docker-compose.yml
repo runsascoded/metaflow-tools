@@ -1,0 +1,70 @@
+version: "3.1"
+
+services:
+  scheduler_s1:
+#    build:
+#      context: ./base
+#      dockerfile: Dockerfile
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-scheduler-s1
+    ports:
+      - "18786:8786"
+      - "18787:8787"
+    command: ["dask-scheduler"]
+
+  scheduler_s2:
+    #    build:
+    #      context: ./base
+    #      dockerfile: Dockerfile
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-scheduler-s2
+    ports:
+      - "28786:8786"
+      - "28787:8787"
+    command: ["dask-scheduler"]
+
+  worker_s1_1:
+#    build:
+#      context: ./base
+#      dockerfile: Dockerfile
+#    image: daskdev/dask
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-worker-s1-1
+    command: ["dask-worker", "tcp://scheduler_s1:8786", "--name", "worker-s1-1"]
+
+  worker_s1_2:
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-worker-s1-2
+    command: ["dask-worker", "tcp://scheduler_s1:8786", "--name", "worker-s1-2"]
+
+  worker_s2_1:
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-worker-s2-1
+    command: ["dask-worker", "tcp://scheduler_s2:8786", "--name", "worker-s2-1"]
+
+  worker_s2_2:
+    image: celsiustx/rightsize_99_standard_py37
+    hostname: dask-worker-s2-2
+    command: ["dask-worker", "tcp://scheduler_s2:8786", "--name", "worker-s2-2"]
+
+
+#  base-notebook:
+#    build:
+#      context: github.com/jupyter/docker-stacks.git#master:base-notebook
+#      dockerfile: Dockerfile
+#      args:
+#        PYTHON_VERSION: "3.7"
+#    image: jupyter/base-notebook:lab
+#
+#  notebook:
+#    build:
+#      context: ./notebook
+#      dockerfile: Dockerfile
+#    image: daskdev/dask-notebook
+#    depends_on:
+#      - base-notebook
+#    hostname: notebook
+#    ports:
+#      - "8888:8888"
+#    environment:
+#      - DASK_SCHEDULER_ADDRESS="tcp://scheduler:8786"
