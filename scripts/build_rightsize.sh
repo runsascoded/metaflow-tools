@@ -58,6 +58,7 @@ do
 done
 
 # New work happens in the build dir
+echo Build staging occuring in ${CTX_BUILD_DIR}
 cd ${CTX_BUILD_DIR}
 
 if [ ! -e private-deps ]; then
@@ -79,19 +80,23 @@ for R in ${CELSIUSTX_REPOS}
 do
   if [[ ${LOCAL_REPOS} == 'true' ]]; then
     if [[ -e ${CTX_HOME}/${R} ]]; then
+      echo Staging ${R} from local source
       # shellcheck disable=SC2090
       rsync -a ${CTX_HOME}/${R} private-deps ${DEV_REPO_EXCLUDES}
       continue
     fi
   fi
   if [ ! -e private-deps/${R} ]; then
+    echo Cloning ${R} from ${BRANCH}
     git clone git@github.com:celsiustx/${R}.git -b ${BRANCH} private-deps/${R}
     RV=$?
     if [[ ${RV} != 0 ]]; then
+      echo Trying instead ${R} from ${BRANCH}
       git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH} private-deps/${R}
       RV=$?
     fi
   else
+    echo Checking out ${R} from ${BRANCH}
     bash -c "cd private-deps/${R} && git checkout ${BRANCH} && git pull"
     RV=$?
     if [[ ${RV} != 0 ]]; then
@@ -114,6 +119,7 @@ done
 
 # Now build the final rightsize repo
 IMAGE_NAME=rightsize_99_standard_py${PYV}
+echo Building Docker image ${IMAGE_NAME}
 docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
   -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
   --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
