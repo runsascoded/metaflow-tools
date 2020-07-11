@@ -1,0 +1,1 @@
+./push_rightsize_image.sh rightsize_01_base_cuda102_py37 $1

@@ -4,9 +4,30 @@
 #echo "    Username: \$oauthtoken"
 #echo "    Password: NTY4cDNjbTJjcjc2c29uaTBhaGdtMjQzcGk6ZTJkNTdmNWItMWI2MC00NjQ2LWI1OWMtZTIxNzlkMjRiNjBk"
 #echo ---------------------------
+
+if [[ -z ${CTX_HOME} ]]; then
+    echo Please set CTX _HOME to the root of your local repos.
+    exit 1
+fi
+if [[ -z ${CTX_BUILD_DIR} ]]; then
+  me=`basename "$0"`
+  CTX_BUILD_DIR=${HOME}/dev_build/${me}
+  if [[ ! -e ${CTX_BUILD_DIR} ]]; then
+    mkdir -p ${CTX_BUILD_DIR}
+  fi
+fi
+
+if [[ -n "$1" ]]; then
+    DEPLOYMENT_ENV=$1
+else
+    DEPLOYMENT_ENV=$(whoami)
+    LOCAL_REPOS=true
+fi
+
 CWD=$(pwd)
 PID=$$
 PYV=37
+MY_REPO_PATH=${CTX_HOME}/rightsize
 
 RED="\033[0;31m"
 GREEN="\033[0;32m"
@@ -27,15 +48,18 @@ BASE_IMAGES="${BASE_IMAGES} rightsize_03_dask_base_py${PYV}"
 
 for B in ${BASE_IMAGES}
 do
-  docker build -t celsiustx/${B} -f ../infrastructure/docker/${B}.dockerfile .
+  docker build -t celsiustx/${B} -f ../infrastructure/docker/${B}.dockerfile --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
   RV=$?
   if [[ ${RV} != 0 ]]; then
     echo -e ${RED}Problem building image: ${B}${NC}
     exit 125
   fi
+  ./push_rightsize_image.sh ${B} ${DEPLOYMENT_ENV}
 done
 
-# This mode is going to use the develop branch for all the repos
+# New work happens in the build dir
+cd ${CTX_BUILD_DIR}
+
 if [ ! -e private-deps ]; then
   mkdir private-deps
 fi
@@ -43,45 +67,56 @@ fi
 # Undo ignore of private-deps
 echo "" > .dockerignore
 
-CELSIUSTX_REPOS="celsius-utils multisample-analysis ctxbio cesium3 scannotate tumortate palantir phenograph"
+CELSIUSTX_REPOS="celsius-utils multisample-analysis ctxbio cesium3 rightsize scannotate tumortate palantir phenograph"
 # TODO - possibly expose different branch options here
 BRANCH=develop
 ALT_BRANCH=master
 
+# shellcheck disable=SC2089
+DEV_REPO_EXCLUDES='--exclude ".*/" --exclude "*venv"'
+
 for R in ${CELSIUSTX_REPOS}
 do
-    if [[ -f ${R}/.dockerignore ]]; then
-        echo Processing .dockerignore in ${R}
-        while read p; do
-            echo ${R}/${p} >> .dockerignore
-        done<${R}/.dockerignore
+  if [[ ${LOCAL_REPOS} == 'true' ]]; then
+    if [[ -e ${CTX_HOME}/${R} ]]; then
+      # shellcheck disable=SC2090
+      rsync -a ${CTX_HOME}/${R} private-deps ${DEV_REPO_EXCLUDES}
+      continue
     fi
-    if [ ! -e private-deps/${R} ]; then
-      git clone git@github.com:celsiustx/${R}.git -b ${BRANCH} private-deps/${R}
-      RV=$?
-      if [[ ${RV} != 0 ]]; then
-        git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH} private-deps/${R}
-        RV=$?
-      fi
-    else
-      bash -c "cd private-deps/${R} && git checkout ${BRANCH} && git pull"
-      RV=$?
-      if [[ ${RV} != 0 ]]; then
-        bash -c "cd private-deps/${R} && git checkout ${ALT_BRANCH} && git pull"
-        RV=$?
-      fi
-    fi
-
+  fi
+  if [ ! -e private-deps/${R} ]; then
+    git clone git@github.com:celsiustx/${R}.git -b ${BRANCH} private-deps/${R}
+    RV=$?
     if [[ ${RV} != 0 ]]; then
-      echo -e ${RED}Problem setting up private repo: ${R}${NC}
-      exit 126
+      git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH} private-deps/${R}
+      RV=$?
     fi
+  else
+    bash -c "cd private-deps/${R} && git checkout ${BRANCH} && git pull"
+    RV=$?
+    if [[ ${RV} != 0 ]]; then
+      bash -c "cd private-deps/${R} && git checkout ${ALT_BRANCH} && git pull"
+      RV=$?
+    fi
+  fi
+  if [[ ${RV} != 0 ]]; then
+    echo -e ${RED}Problem setting up private repo: ${R}${NC}
+    exit 126
+  fi
+  if [[ -f ${R}/.dockerignore ]]; then
+      echo Processing .dockerignore in ${R}
+      while read p; do
+          echo ${R}/${p} >> .dockerignore
+      done<${R}/.dockerignore
+  fi
 done
 
 
 # Now build the final rightsize repo
 IMAGE_NAME=rightsize_99_standard_py${PYV}
-docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} -f ../infrastructure/docker/${IMAGE_NAME}.dockerfile .
+docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
+  -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
+  --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
 RV=$?
 
 if [[ ${RV} == 0 ]]; then
@@ -95,97 +130,4 @@ else
     echo -e ${RED}Problem with build${NC}
     exit 1
 fi
-
-
-
-#
-#bash -c "cd private-deps/celsius-utils; git pull"
-#if [ ! -e ctxcommon ]; then
-#  ln -s private-deps/celsius-utils/ctxcommon ctxcommon
-#fi
-#
-#IMAGE_NAME=rightsize
-#
-#
-#
-##if [[ -z ${CTX_HOME} ]]; then
-##    echo Please set CTX_HOME to the root of your repos.  It will be used as a temporory build environment
-##    exit 1
-##fi
-#echo ""
-#
-#
-##BUILD_DIR=$(mktemp -d ${CTX_HOME}/ctxbuild_temp_XXXXX)
-#BUILD_DIR=${CTX_HOME}
-#
-#CWD=$(pwd)
-#PID=$$
-#
-#cd ${BUILD_DIR}
-#
-#if [[ -f ".dockerignore" ]]; then
-#    echo Backing up existing .dockerignore
-#    cp .dockerignore .dockerignore.${PID}
-#fi
-#echo "" > .dockerignore
-#
-#RETAIN="celsius-utils multisample-analysis ctxbio cesium3 scannotate tumortate palantir phenograph"
-#
-#for fname in *; do
-#    if [[ ${RETAIN} =~ ${fname} ]]; then
-#        echo Including ${fname} in build context
-#    else
-#        echo ${fname} >> .dockerignore
-#    fi
-#done
-#
-#for R in ${RETAIN}
-#do
-#    if [[ -f ${R}/.dockerignore ]]; then
-#        echo Processing .dockerignore in ${R}
-#        while read p; do
-##            echo adding ${R}/${p} to dockerignore
-#            echo ${R}/${p} >> .dockerignore
-#        done<${R}/.dockerignore
-#    fi
-#done
-#
-#INSTALL_REPOS="scannotate tumortate palantir phenograph"
-#
-## Get the external repo explicitly
-#if [[ ! -d phenograph ]]; then
-#    git clone git@github.com:jacoblevine/phenograph.git
-#fi
-#
-#for R in ${INSTALL_REPOS}
-#do
-#    if [[ ! -d ${R} ]]; then
-#        echo Cloning ${R}
-#        git clone git@github.com:celsiustx/${R}.git
-#    fi
-#    if [[ -f ${R}/.dockerignore ]]; then
-#        echo Processing .dockerignore in ${R}
-#        while read p; do
-#            echo ${R}/${p} >> .dockerignore
-#        done<${R}/.dockerignore
-#    fi
-#done
-#
-#docker build --shm-size 256m -t ${IMAGE_NAME} -f multisample-analysis/infrastructure/docker/Dockerfile .
-#RV=$?
-#
-#if [[ ${RV} == 0 ]]; then
-#    echo Success, cleaning up
-#    rm .dockerignore
-#    if [[ -f ".dockerignore.${PID}" ]]; then
-#        echo Restoring previous .dockerignore
-#        mv .dockerignore.${PID} .dockerignore
-#    fi
-#else
-#    echo Problem with build
-#    exit 1
-#fi
-#
-#cd ${CWD}
-#
 

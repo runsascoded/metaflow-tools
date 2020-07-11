@@ -1,5 +1,5 @@
-#FROM nvcr.io/nvidia/tensorflow:19.05-py2
-FROM celsiustx/rightsize_01_base_cuda102_py37
+ARG FROM_TAG=latest
+FROM 386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_01_base_cuda102_py37:$FROM_TAG
 
 # See reference docker used by dask compose files
 # https://github.com/ContinuumIO/docker-images/blob/master/miniconda3/debian/Dockerfile

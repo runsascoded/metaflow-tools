@@ -1,0 +1,1 @@
+./push_rightsize_image.sh rightsize_99_standard_py37 $1

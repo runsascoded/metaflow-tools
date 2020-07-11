@@ -8,43 +8,7 @@ from rightsize.distributed.flow import RightsizeFlow
 from rightsize.distributed.remote import rsremote
 
 ###
-# Sample invocation for a single operation - no workflow involved.
-###
-print("*** Sample single operation invocation")
-
-
-@rsremote(processor_type='cpu')
-def say_hello_rstask_cpu(name):
-    print(f'{datetime.now()}: CPU: rstask hello {name}', flush=True)
-    worker = get_worker()
-    return f'done cpu on {worker.name}, scheduler at {worker.scheduler.address}'
-
-
-@rsremote(processor_type='gpu', branch='feature/another_branch')
-def say_hello_rstask_gpu(name):
-    print(f'{datetime.now()}: GPU: rstask hello {name}', flush=True)
-    worker = get_worker()
-    return f'done gpu on {worker.name}, scheduler at {worker.scheduler.address}'
-
-
-print("*** *** Using a cpu")
-# With the rsremote wrapper, the function ends up as a future
-func_future = say_hello_rstask_cpu('someone trying to use a cpu')
-# to get the return from the function, call .result() on the future
-return_value = func_future.result()
-print(f'return value is {return_value}')
-
-print("*** *** Using a gpu")
-func_future = say_hello_rstask_gpu('someone trying to use a gpu')
-return_value = func_future.result()
-print(f'return value is {return_value}')
-
-execute_workflow = False
-if not execute_workflow:
-    exit(0)
-
-###
-# Sample workflow invocation
+# Sample workflow invocation with Docker storage
 ###
 
 print("*** Sample workflow invocation")

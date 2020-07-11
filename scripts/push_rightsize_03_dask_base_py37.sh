@@ -1,0 +1,1 @@
+./push_rightsize_image.sh rightsize_03_dask_base_py37 $1

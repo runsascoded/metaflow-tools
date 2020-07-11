@@ -1,0 +1,1 @@
+./push_rightsize_image.sh rightsize_02_conda37 $1

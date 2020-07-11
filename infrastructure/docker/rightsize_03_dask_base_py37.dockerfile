@@ -1,4 +1,5 @@
-FROM celsiustx/rightsize_02_conda37
+ARG FROM_TAG=latest
+FROM 386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_02_conda37:$FROM_TAG
 
 ENV CONDA_HOME="/opt/conda"
 ENV PATH="$CONDA_HOME/bin:$PATH"
