@@ -1,1 +1,2 @@
 prefect >= 0.12.1
+dask_cloudprovider >= 0.3.0

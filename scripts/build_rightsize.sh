@@ -33,14 +33,6 @@ RED="\033[0;31m"
 GREEN="\033[0;32m"
 NC="\033[0m"
 
-if [[ -f ".dockerignore" ]]; then
-    echo Backing up existing .dockerignore
-    cp .dockerignore .dockerignore.${PID}
-fi
-
-# We want to ignore the private dependencies during the base image builds
-echo private-deps > .dockerignore
-
 BASE_IMAGES=""
 BASE_IMAGES="${BASE_IMAGES} rightsize_01_base_cuda102_py${PYV}"
 BASE_IMAGES="${BASE_IMAGES} rightsize_02_conda${PYV}"
@@ -73,16 +65,27 @@ CELSIUSTX_REPOS="celsius-utils multisample-analysis ctxbio cesium3 rightsize sca
 BRANCH=develop
 ALT_BRANCH=master
 
-# shellcheck disable=SC2089
-DEV_REPO_EXCLUDES='--exclude ".*/" --exclude "*venv"'
 
 for R in ${CELSIUSTX_REPOS}
 do
   if [[ ${LOCAL_REPOS} == 'true' ]]; then
     if [[ -e ${CTX_HOME}/${R} ]]; then
       echo Staging ${R} from local source
+      # shellcheck disable=SC2089
+      echo $DEV_REPO_EXCLUDES
       # shellcheck disable=SC2090
-      rsync -a ${CTX_HOME}/${R} private-deps ${DEV_REPO_EXCLUDES}
+      rsync -av ${CTX_HOME}/${R} private-deps \
+        --exclude '.git' \
+        --exclude '*venv' \
+        --exclude '*node_modules' \
+        --exclude 'private-deps' \
+        --exclude 'doc' \
+        --exclude 'docs' \
+        --exclude 'service/.serverless' \
+        --exclude 'test' \
+        --exclude 'tests' \
+        --exclude '*test-env*' \
+        --exclude '.idea'
       continue
     fi
   fi
@@ -121,6 +124,9 @@ done
 IMAGE_NAME=rightsize_99_standard_py${PYV}
 echo Building Docker image ${IMAGE_NAME}
 docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
+  -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
+  --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
+echo docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
   -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
   --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
 RV=$?
