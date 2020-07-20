@@ -1,139 +1,163 @@
-import base64
-import os
-import re
-
-import boto3
 import prefect
-from ctxcommon.util.aws_utils import DEFAULT_REGION
 from dask_cloudprovider.providers.aws.ecs import FargateCluster
 from prefect import Flow
 from prefect.engine.executors import DaskExecutor
-from prefect.environments import DaskCloudProviderEnvironment
-from prefect.environments.storage import Docker
-from prefect.tasks.secrets import PrefectSecret
-from prefect.tasks.shell import ShellTask
+from prefect.environments import DaskCloudProviderEnvironment, FargateTaskEnvironment
 
-from rightsize.distributed.scheduler import SchedulerResolver
+from rightsize.distributed.scheduler import SchedulerResolver, PREFECT_COMPOSE_HOST
 
 # Upon loading this file, which should happen before any flows are used or interacted with, we should
 # initialize the location of the prefect server.
+from rightsize.storage.rightsize_storage import RightsizeStorage
+from util.aws_utils import safe_cluster_name
+from util.utils import get_logger
+
+logger = get_logger()
+
 def initialize_prefect():
     # TODO - this should be an actual endpoint
-    prefect.context.config.cloud.graphql = 'http://localhost:4200/graphql'
+    prefect.context.config.cloud.graphql = f'http://{PREFECT_COMPOSE_HOST}:4200/graphql'
+    prefect.context.config.cloud.diagnostics = True
+    # prefect.context.config.cloud.api = f'http://{PREFECT_COMPOSE_HOST}:4200'
+    # prefect.context.config.server.host = f'http://{PREFECT_COMPOSE_HOST}'
 
 
 initialize_prefect()
 
 
 class RightsizeFlow(Flow):
+    storage_arg_names = {
+        # 'storage_provider': 'RightsizeStorageDocker',
+        'storage_provider': 'RightsizeStorageS3',
+    }
+    environment_arg_names = {
+        'environment': 'prod'
+    }
+    @property
+    def storage_provider(self) -> RightsizeStorage:
+        return self._storage_provider
+
+    @property
+    def rs_environment(self) -> str:
+        return self._rs_environment
+
     def __init__(self, *args, **kwargs):
-        super(RightsizeFlow, self).__init__(*args, **kwargs)
+        local_kwargs = kwargs.copy()
+        def kw_extract(source_kwargs: dict):
+            dest_kwargs = source_kwargs.copy()
+            del_list = []
+            for k, v in local_kwargs.items():
+                if k in dest_kwargs:
+                    dest_kwargs[k] = v
+                    del_list.append(k)
+            for d in del_list:
+                del local_kwargs[d]
 
-        ############## Storage ecr docker flow ##############
-        # aws configuration
-        aws_ecr_repo_name = "prefect_flows"
-        aws_region = DEFAULT_REGION
-        # See https://github.com/awslabs/amazon-ecr-credential-helper
+            return dest_kwargs
 
-        # 1. Reset Auth (hackish)
-        # dkr_ecr_scrt = PrefectSecret("docker_ecr_login").run()
 
-        # get_ecr_auth_token = ShellTask(helper_script="cd ~")
-        # ecr_auth_token = get_ecr_auth_token.run(command=dkr_ecr_scrt)
+        storage_kwargs = kw_extract(self.storage_arg_names)
+        logger.debug(f'extracted storage_kwargs: {storage_kwargs}')
+        env_kwargs = kw_extract(self.environment_arg_names)
+        logger.debug(f'extracted env_kwargs: {env_kwargs}')
+        # storage_kwargs = self.storage_arg_names.copy()
+        # for k, v in local_kwargs.items():
+        #     if k in self.storage_arg_names:
+        #         storage_kwargs[k] = v
+        #         del local_kwargs[k]
 
-        ecr_client = boto3.client('ecr', region_name=aws_region)
-        ecr_token = ecr_client.get_authorization_token()
+        self._rs_environment = env_kwargs['environment']
 
-        # # Decode the aws token
-        username, password = base64.b64decode(ecr_token['authorizationData'][0]['authorizationToken'])\
-            .decode().split(':')
-        ecr_registry_url = ecr_token['authorizationData'][0]['proxyEndpoint']
-
-        # # Registry URL for prefect or docker push
-        flow_registry_url = os.path.join(ecr_registry_url.replace('https://', ''), aws_ecr_repo_name)
-
-        # see https://docs.prefect.io/api/latest/environments/storage.html#docker
-        image_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', self.name).lower()
-        # docker tag prefect_flows:latest 386834949250.dkr.ecr.us-east-1.amazonaws.com/prefect_flows:latest
-        # registry_url = "386834949250.dkr.ecr.us-east-1.amazonaws.com/prefect_flows"
-
-        # local_image (bool, optional): an optional flag whether or not to use a local docker image,
-        # if True then a pull will not be attempted
-        use_local_image = True
-
-        storage = Docker(
-            base_image='celsiustx/rightsize_99_standard_py37',
-            image_name=image_name,
-            local_image=use_local_image,
-            # registry_url=flow_registry_url
-        )
-        self.storage = storage
-
-        # see https://docs.prefect.io/api/latest/environments/execution.html#daskcloudproviderenvironment
-        # Args:
-        # provider_class (class): Class of a provider from the Dask Cloud Provider projects. Current supported options are ECSCluster and FargateCluster.
-        # adaptive_min_workers (int, optional): Minimum number of workers for adaptive mode. If this value is None, then adaptive mode will not be used and you should pass n_workers or the appropriate kwarg for the provider class you are using.
-        # adaptive_max_workers (int, optional): Maximum number of workers for adaptive mode.
-        # security (Type[Security], optional): a Dask Security object from distributed.security.Security. Use this to connect to a Dask cluster that is enabled with TLS encryption. For more on using TLS with Dask see https://distributed.dask.org/en/latest/tls.html
-        # executor_kwargs (dict, optional): a dictionary of kwargs to be passed to the executor; defaults to an empty dictionary
-        # labels (List[str], optional): a list of labels, which are arbitrary string identifiers used by Prefect Agents when polling for work
-        # on_execute (Callable[[Dict[str, Any], Dict[str, Any]], None], optional): a function callback which will be called before the flow begins to run. The callback function can examine the Flow run parameters and modify kwargs to be passed to the Dask Cloud Provider class's constructor prior to launching the Dask cluster for the Flow run. This allows for dynamically sizing the cluster based on the Flow run parameters, e.g. settings n_workers. The callback function's signature should be: on_execute(parameters: Dict[str, Any], provider_kwargs: Dict[str, Any]) -> None The callback function may modify provider_kwargs (e.g. provider_kwargs["n_workers"] = 3) and any relevant changes will be used when creating the Dask cluster via a Dask Cloud Provider class.
-        # on_start (Callable, optional): a function callback which will be called before the flow begins to run
-        # on_exit (Callable, optional): a function callback which will be called after the flow finishes its run
-        # metadata (dict, optional): extra metadata to be set and serialized on this environment
-        # **kwargs (dict, optional): additional keyword arguments to pass to boto3 for register_task_definition and run_task
-        # def on_execute(parameters: dict, provider_kwargs: dict) -> None:
-        #     # see rightsize-venv/lib/python3.7/site-packages/dask_cloudprovider/providers/aws/ecs.py:402
-        #     # production vpc
-        #     provider_kwargs["vpc"] = 'vpc-5eb4a127'
-        #     # use the image we just created for this particular flow
-        #     provider_kwargs["image"] = '386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_99_standard_py37'
-        #     a = 1
-        #
-        # environment = DaskCloudProviderEnvironment(
-        #     FargateCluster,
-        #     adaptive_min_workers=1,
-        #     on_execute=on_execute,
-        # )
-        # # self.environment = environment
-
+        super(RightsizeFlow, self).__init__(*args, **local_kwargs)
+        logger.debug(f'initialized Flow class')
+        self._storage_provider = RightsizeStorage.create(self, storage_provider=storage_kwargs['storage_provider'])
+        logger.debug(f'created storage provider of {self._storage_provider}')
+        self.storage = self._storage_provider.storage
 
     def run(self, **kwargs):
         resolver_arg_names = {
             'processor_type': 'cpu',
             'branch': 'master'
         }
+        # These lines are if we are hitting a dask scheduler directly, which I don't think we want
+        # to do if we are using the FargateCluster approach and dynamically created dask clusters
         scheduler_kwargs = {k: v for k, v in kwargs.items() if k in resolver_arg_names}
-        scheduler = SchedulerResolver.find_by_attributes(scheduler_kwargs)
-
+        scheduler_addr = SchedulerResolver.find_by_attributes(scheduler_kwargs)
 
         pass_kwargs = {k: v for k, v in kwargs.items() if k not in resolver_arg_names}
-        # class prefect.environments.execution.dask.cloud_provider.DaskCloudProviderEnvironment
-        # (provider_class, adaptive_min_workers=None, adaptive_max_workers=None, security=None, executor_kwargs=None,
-        # labels=None, on_execute=None, on_start=None, on_exit=None, metadata=None, **kwargs)
+        # we go to the storage provider in case it is a DockerStorage - but do we need to do that?  Will it always
+        # be the prefect image?
+        image_name = self.storage_provider.image_name
+        logger.debug(f'constructed image_name of {image_name}')
+
         # This creates a direct link to an existing scheduler
         # executor = DaskExecutor(address=scheduler)
+
         # To link to the dask_cloudprovider
         # @see https://docs.prefect.io/api/latest/engine/executors.html#daskexecutor
-        def on_execute(parameters: dict, provider_kwargs: dict) -> None:
-            # see rightsize-venv/lib/python3.7/site-packages/dask_cloudprovider/providers/aws/ecs.py:402
-            # production vpc
-            # provider_kwargs["vpc"] = 'vpc-5eb4a127'
-            # use the image we just created for this particular flow
-            # provider_kwargs["image"] = '386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_99_standard_py37'
-            a = 1
         # @see https://cloudprovider.dask.org/en/latest/api.html#dask_cloudprovider.ECSCluster
+        #             image="prefecthq/prefect:latest",
+        #             task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
+        #             execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
+        #             n_workers=1,
+        #             scheduler_cpu=256,
+        #             scheduler_mem=512,
+        #             worker_cpu=256,
+        #             worker_mem=512,
+        #             scheduler_timeout="15 minutes",
+
+        ### Creating a Dask cluster in fargate
+        # security_group = 'prefect-dask-sg'
+        cluster_name = safe_cluster_name(self.name)
+        # logger.debug(f'constructed cluster_name of {cluster_name}')
+        cluster_kwargs = {
+            'vpc': 'vpc-5eb4a127',
+            # 'security_groups': [security_group],
+            'fargate_use_private_ip': True,
+            # 'execution_role_arn': 'arn:aws:iam::386834949250:role/prefect-dask-execution-role',
+            # 'task_role_arn': 'arn:aws:iam::386834949250:role/prefect-dask-task-role',
+            'image': image_name,
+            # 'image': 'prefecthq/prefect:latest',
+            'cluster_name_template': f'dask-{cluster_name}-{self.rs_environment}-{{uuid}}'
+        }
+        # cluster = FargateCluster(**cluster_kwargs)
+        # logger.debug(f'created FargateCluster {cluster}')
+        #
+        # if scheduler_kwargs.get('processor_type') == 'gpu':
+        #     # worker_gpu: int (optional) The number of GPUs to expose to the worker.
+        #     cluster_kwargs['worker_gpu'] = 1
+        # # executor = DaskExecutor(cluster_class='dask_cloudprovider.FargateCluster',
+        # #                         cluster_kwargs=cluster_kwargs
+        # #                         )
+        # logger.debug(f'cluster scheduler is at {cluster.scheduler.address}')
+        # executor = DaskExecutor(cluster.scheduler.address)
+        # logger.debug(f'created DaskExecutor {executor}')
+        # pass_kwargs['executor'] = executor
+        ### END Creating a Dask cluster in fargate
+        executor_kwargs = {'cluster_kwargs': cluster_kwargs}
+
+        # probably not the right one
+        # self.environment = DaskCloudProviderEnvironment(
+        #     provider_class=FargateCluster,
+        #     executor_kwargs=executor_kwargs
+        # )
+        # , adaptive_min_workers=None, adaptive_max_workers=None,
+        # security=None, executor_kwargs=None, labels=None,
+        # on_execute=None, on_start=None, on_exit=None, metadata=None, ** kwargs)
         executor = DaskExecutor(cluster_class='dask_cloudprovider.FargateCluster',
-                                cluster_kwargs={
-                                    'vpc': 'vpc-5eb4a127',
-                                    # use the image we just created for this particular flow
-                                    'image': '386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_99_standard_py37',
-                                    # 'adaptive_min_workers': 1,
-                                    # 'on_execute': on_execute
-                                }
-                                )
-        pass_kwargs['executor'] = executor
+                                cluster_kwargs=cluster_kwargs)
+        self.environment = FargateTaskEnvironment(
+            executor=executor,
+            executor_kwargs=executor_kwargs
+        )
+        # launch_type="FARGATE", aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None,
+        # region_name=None, executor=None, executor_kwargs=None, labels=None,
+        # on_start=None, on_exit=None, metadata=None, ** kwargs)
         try:
+            logger.debug(f'registering Flow run')
+            ret = super(RightsizeFlow, self).register()
+            logger.debug(f'executing Flow run with kw_args {pass_kwargs}')
             return super(RightsizeFlow, self).run(**pass_kwargs)
         except Exception as ex:
             raise ex
+

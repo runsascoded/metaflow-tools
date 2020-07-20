@@ -23,6 +23,10 @@ RUN conda install --yes \
     && find $CONDA_HOME/lib/python*/site-packages/bokeh/server/static -type f,l -name '*.js' -not -name '*.min.js' -delete \
     && rm -rf $CONDA_HOME/pkgs
 
+RUN conda install --yes \
+    -c rapidsai \
+    dask-cuda>=0.9.1
+
 COPY rightsize_dask_prepare.sh /usr/bin/prepare.sh
 
 RUN mkdir /opt/app

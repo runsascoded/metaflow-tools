@@ -21,14 +21,14 @@ def say_hello(name):
 
 
 name = Parameter('name')
-with RightsizeFlow("Simple parallel hello") as flow:
+with RightsizeFlow("Simple parallel hello", environment='gdesmarais') as flow:
     # Since there is no return value dependency, we end up with possible parallel operations
     # for i in range(10):
     for i in range(1):
             say_hello(name)
 
 # If we want to register this flow for future use, we can do it with
-flow.register()
+# flow.register()
 
 rs_params = {'processor_type': 'cpu'}
 rs_params = {}

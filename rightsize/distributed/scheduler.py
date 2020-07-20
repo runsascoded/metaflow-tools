@@ -1,4 +1,4 @@
-
+PREFECT_COMPOSE_HOST = '10.72.112.29'
 class SchedulerResolver:
     clients = {
         'client1':  {

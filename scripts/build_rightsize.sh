@@ -82,10 +82,10 @@ do
         --exclude 'doc' \
         --exclude 'docs' \
         --exclude 'service/.serverless' \
-        --exclude 'test' \
-        --exclude 'tests' \
         --exclude '*test-env*' \
         --exclude '.idea'
+#        --exclude 'test' \
+#        --exclude 'tests' \
       continue
     fi
   fi
@@ -119,16 +119,20 @@ do
   fi
 done
 
-
 # Now build the final rightsize repo
 IMAGE_NAME=rightsize_99_standard_py${PYV}
 echo Building Docker image ${IMAGE_NAME}
+
 docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
   -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
   --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
-echo docker build --shm-size 256m -t celsiustx/${IMAGE_NAME} \
-  -f ${MY_REPO_PATH}/infrastructure/docker/${IMAGE_NAME}.dockerfile \
-  --build-arg FROM_TAG=${DEPLOYMENT_ENV} .
+RV=$?
+if [[ ${RV} != 0 ]]; then
+  echo -e ${RED}Problem building image: ${IMAGE_NAME}${NC}
+  exit 125
+fi
+
+${CWD}/push_rightsize_image.sh ${IMAGE_NAME} ${DEPLOYMENT_ENV}
 RV=$?
 
 if [[ ${RV} == 0 ]]; then
