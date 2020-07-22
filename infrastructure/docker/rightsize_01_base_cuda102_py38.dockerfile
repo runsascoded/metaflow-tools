@@ -19,7 +19,10 @@ RUN apt-get update && \
 # Development related systems
 RUN apt-get install -y \
         build-essential \
+        bzip2 \
+        ca-certificates \
         cmake \
+        git \
         libboost-all-dev \
         libbz2-dev \
         libcurl3-dev \
@@ -27,7 +30,13 @@ RUN apt-get install -y \
         liblzma-dev \
         libncurses5-dev \
         libssl-dev \
+        libxml2 \
+        libxml2-dev \
+        libxml2-utils \
+        vim \
         zlib1g-dev
+
+#    apt-get install -y wget bzip2 ca-certificates libglib2.0-0 libxext6 libsm6 libxrender1 git mercurial subversion && \
 
 RUN apt-get install -y \
         python3.8 \

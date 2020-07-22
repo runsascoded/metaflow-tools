@@ -76,6 +76,9 @@ RUN jupyter contrib nbextension install --user
 # and http://numba.pydata.org/numba-doc/latest/reference/envvars.html#envvar-NUMBA_PARALLEL_DIAGNOSTICS
 ENV NUMBA_PARALLEL_DIAGNOSTICS=4
 
+COPY private-deps/rightsize/infrastructure/patch/execute.py .local/lib/python3.7/site-packages/prefect/cli/execute.py
+COPY private-deps/rightsize/infrastructure/patch/s3.py .local/lib/python3.7/site-packages/prefect/environments/storage/s3.py
+
 #ENTRYPOINT ["python3", "-u", "-m", "infrastructure.docker.msa_entrypoint_wrapper"]
 
 

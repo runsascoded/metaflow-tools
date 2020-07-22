@@ -1,3 +1,4 @@
 bokeh>=2.1.1
 dask_cloudprovider>=0.3.0
 prefect>=0.12.4
+SecretStorage>=3.1.2

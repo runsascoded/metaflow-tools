@@ -1,0 +1,9 @@
+debug = true
+backend = 'server'
+[server]
+  [server.ui]
+    graphql_url = "http://10.72.112.29:4200/graphql"
+[cloud]
+  api = "http://10.72.112.29:4200"
+  [cloud.agent]
+    level = "DEBUG"

@@ -64,8 +64,8 @@ class RightsizeStorageDocker(RightsizeStorage):
         # see https://docs.prefect.io/api/latest/environments/storage.html#docker
         self._storage = Docker(
             base_image='celsiustx/rightsize_99_standard_py37',
+            registry_url=flow_registry_url,
             image_name=self.image_name,
             local_image=use_local_image,
-            registry_url=flow_registry_url
         )
 
