@@ -38,6 +38,9 @@ BASE_IMAGES="${BASE_IMAGES} rightsize_01_base_cuda102_py${PYV}"
 BASE_IMAGES="${BASE_IMAGES} rightsize_02_conda${PYV}"
 BASE_IMAGES="${BASE_IMAGES} rightsize_03_dask_base_py${PYV}"
 
+cp ${MY_REPO_PATH}/requirements.txt rightsize-requirements.txt
+cp ${MY_REPO_PATH}/requirements-dask-base.txt requirements-dask-base.txt
+
 for B in ${BASE_IMAGES}
 do
   docker build -t celsiustx/${B} -f ../infrastructure/docker/${B}.dockerfile --build-arg FROM_TAG=${DEPLOYMENT_ENV} .

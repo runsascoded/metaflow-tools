@@ -9,8 +9,8 @@ from rightsize.distributed.scheduler import SchedulerResolver, PREFECT_COMPOSE_H
 # Upon loading this file, which should happen before any flows are used or interacted with, we should
 # initialize the location of the prefect server.
 from rightsize.storage.rightsize_storage import RightsizeStorage
-from util.aws_utils import safe_cluster_name
-from util.utils import get_logger
+from ctxcommon.util.aws_utils import safe_cluster_name
+from ctxcommon.util.utils import get_logger
 
 logger = get_logger()
 
