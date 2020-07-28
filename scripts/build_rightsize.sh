@@ -122,6 +122,22 @@ do
   fi
 done
 
+# Pull the prefect source into the image
+if [ ! -e private-deps/prefect ]; then
+  echo Cloning prefect
+  git clone git@github.com:PrefectHQ/prefect.git private-deps/prefect
+  RV=$?
+else
+  bash -c "cd private-deps/prefect && git checkout master && git pull"
+  RV=$?
+fi
+if [[ ${RV} != 0 ]]; then
+  echo -e ${RED}Problem setting up prefect repo${NC}
+  exit 126
+fi
+
+
+
 # Now build the final rightsize repo
 IMAGE_NAME=rightsize_99_standard_py${PYV}
 echo Building Docker image ${IMAGE_NAME}

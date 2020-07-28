@@ -1,8 +1,10 @@
 import prefect
 from dask_cloudprovider.providers.aws.ecs import FargateCluster
-from prefect import Flow
+from prefect import Flow, Client
+from prefect.engine import FlowRunner
 from prefect.engine.executors import DaskExecutor
-from prefect.environments import DaskCloudProviderEnvironment, FargateTaskEnvironment
+from prefect.engine.results import PrefectResult
+from prefect.environments import DaskCloudProviderEnvironment, FargateTaskEnvironment, LocalEnvironment
 
 from rightsize.distributed.scheduler import SchedulerResolver, PREFECT_COMPOSE_HOST
 
@@ -18,6 +20,8 @@ def initialize_prefect():
     # TODO - this should be an actual endpoint
     prefect.context.config.cloud.graphql = f'http://{PREFECT_COMPOSE_HOST}:4200/graphql'
     prefect.context.config.cloud.diagnostics = True
+    prefect.context.config.flows.checkpointing = True
+    prefect.context.config.flows.defaults.storage.default_class = 'prefect.engine.results.PrefectResult'
     # prefect.context.config.cloud.api = f'http://{PREFECT_COMPOSE_HOST}:4200'
     # prefect.context.config.server.host = f'http://{PREFECT_COMPOSE_HOST}'
 
@@ -54,19 +58,20 @@ class RightsizeFlow(Flow):
                 del local_kwargs[d]
 
             return dest_kwargs
-
+        config = prefect.context
 
         storage_kwargs = kw_extract(self.storage_arg_names)
         logger.debug(f'extracted storage_kwargs: {storage_kwargs}')
         env_kwargs = kw_extract(self.environment_arg_names)
         logger.debug(f'extracted env_kwargs: {env_kwargs}')
-        # storage_kwargs = self.storage_arg_names.copy()
-        # for k, v in local_kwargs.items():
-        #     if k in self.storage_arg_names:
-        #         storage_kwargs[k] = v
-        #         del local_kwargs[k]
 
         self._rs_environment = env_kwargs['environment']
+        self._labels = local_kwargs.get('labels')
+        self._flow_id = None
+        self._last_flow_run_id = None
+        self._last_flow_run_results = None
+
+        local_kwargs['result'] = PrefectResult()
 
         super(RightsizeFlow, self).__init__(*args, **local_kwargs)
         logger.debug(f'initialized Flow class')
@@ -74,90 +79,43 @@ class RightsizeFlow(Flow):
         logger.debug(f'created storage provider of {self._storage_provider}')
         self.storage = self._storage_provider.storage
 
+
     def run(self, **kwargs):
         resolver_arg_names = {
             'processor_type': 'cpu',
-            'branch': 'master'
+            'branch': 'prod'
         }
         # These lines are if we are hitting a dask scheduler directly, which I don't think we want
         # to do if we are using the FargateCluster approach and dynamically created dask clusters
         scheduler_kwargs = {k: v for k, v in kwargs.items() if k in resolver_arg_names}
-        scheduler_addr = SchedulerResolver.find_by_attributes(scheduler_kwargs)
+        scheduler_addr = SchedulerResolver.find_by_attributes(attr_set=scheduler_kwargs)
 
         pass_kwargs = {k: v for k, v in kwargs.items() if k not in resolver_arg_names}
         # we go to the storage provider in case it is a DockerStorage - but do we need to do that?  Will it always
         # be the prefect image?
         image_name = self.storage_provider.image_name
         logger.debug(f'constructed image_name of {image_name}')
+        config = prefect.config
+        print(config)
 
-        # This creates a direct link to an existing scheduler
-        # executor = DaskExecutor(address=scheduler)
-
-        # To link to the dask_cloudprovider
-        # @see https://docs.prefect.io/api/latest/engine/executors.html#daskexecutor
-        # @see https://cloudprovider.dask.org/en/latest/api.html#dask_cloudprovider.ECSCluster
-        #             image="prefecthq/prefect:latest",
-        #             task_role_arn="arn:aws:iam::<your-aws-account-number>:role/<your-aws-iam-role-name>",
-        #             execution_role_arn="arn:aws:iam::<your-aws-account-number>:role/ecsTaskExecutionRole",
-        #             n_workers=1,
-        #             scheduler_cpu=256,
-        #             scheduler_mem=512,
-        #             worker_cpu=256,
-        #             worker_mem=512,
-        #             scheduler_timeout="15 minutes",
-
-        ### Creating a Dask cluster in fargate
-        # security_group = 'prefect-dask-sg'
-        cluster_name = safe_cluster_name(self.name)
-        # logger.debug(f'constructed cluster_name of {cluster_name}')
-        cluster_kwargs = {
-            'vpc': 'vpc-5eb4a127',
-            # 'security_groups': [security_group],
-            'fargate_use_private_ip': True,
-            # 'execution_role_arn': 'arn:aws:iam::386834949250:role/prefect-dask-execution-role',
-            # 'task_role_arn': 'arn:aws:iam::386834949250:role/prefect-dask-task-role',
-            'image': image_name,
-            # 'image': 'prefecthq/prefect:latest',
-            'cluster_name_template': f'dask-{cluster_name}-{self.rs_environment}-{{uuid}}'
-        }
-        # cluster = FargateCluster(**cluster_kwargs)
-        # logger.debug(f'created FargateCluster {cluster}')
-        #
-        # if scheduler_kwargs.get('processor_type') == 'gpu':
-        #     # worker_gpu: int (optional) The number of GPUs to expose to the worker.
-        #     cluster_kwargs['worker_gpu'] = 1
-        # # executor = DaskExecutor(cluster_class='dask_cloudprovider.FargateCluster',
-        # #                         cluster_kwargs=cluster_kwargs
-        # #                         )
-        # logger.debug(f'cluster scheduler is at {cluster.scheduler.address}')
-        # executor = DaskExecutor(cluster.scheduler.address)
-        # logger.debug(f'created DaskExecutor {executor}')
-        # pass_kwargs['executor'] = executor
-        ### END Creating a Dask cluster in fargate
-        executor_kwargs = {'cluster_kwargs': cluster_kwargs}
-
-        # probably not the right one
-        # self.environment = DaskCloudProviderEnvironment(
-        #     provider_class=FargateCluster,
-        #     executor_kwargs=executor_kwargs
-        # )
-        # , adaptive_min_workers=None, adaptive_max_workers=None,
-        # security=None, executor_kwargs=None, labels=None,
-        # on_execute=None, on_start=None, on_exit=None, metadata=None, ** kwargs)
-        executor = DaskExecutor(cluster_class='dask_cloudprovider.FargateCluster',
-                                cluster_kwargs=cluster_kwargs)
-        self.environment = FargateTaskEnvironment(
-            executor=executor,
-            executor_kwargs=executor_kwargs
-        )
-        # launch_type="FARGATE", aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None,
-        # region_name=None, executor=None, executor_kwargs=None, labels=None,
-        # on_start=None, on_exit=None, metadata=None, ** kwargs)
+        executor = DaskExecutor(address=scheduler_addr)
+        self.environment = LocalEnvironment(executor=executor, labels=self._labels)
         try:
-            logger.debug(f'registering Flow run')
-            ret = super(RightsizeFlow, self).register()
-            logger.debug(f'executing Flow run with kw_args {pass_kwargs}')
-            return super(RightsizeFlow, self).run(**pass_kwargs)
+            if 'name' in kwargs:
+                logger.debug(f'registering Flow run')
+                self._flow_id = self.register(labels=self._labels)
+
+                p_client = Client(f'http://{PREFECT_COMPOSE_HOST}:4200/graphql')
+                self._last_flow_run_id = p_client.create_flow_run(flow_id=self._flow_id)
+                run_info = p_client.get_flow_run_info(self._last_flow_run_id)
+                print(f'Created flow run: {self._last_flow_run_id}')
+            else:
+                logger.debug(f'executing flow run with kw_args {pass_kwargs}')
+                self._flow_id = None
+                self._last_flow_run_results = super(RightsizeFlow, self).run(executor=executor, **pass_kwargs)
         except Exception as ex:
+            self._last_flow_run_results = None
             raise ex
+
+        return self._last_flow_run_results
 

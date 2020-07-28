@@ -34,18 +34,18 @@ COPY private-deps/phenograph/phenograph ./phenograph
 # TODO - why in src?
 COPY private-deps/palantir/src/palantir ./palantir
 
+COPY private-deps/prefect ./prefect
+
 # Keep this at the end, as it is where most of the changes will happen
 COPY private-deps/celsius-utils/requirements.txt ./celsius-utils.requirements.txt
 COPY private-deps/ctxbio/requirements.txt ./ctxbio.requirements.txt
 COPY private-deps/cesium3/client/requirements.txt cesium3-requirements.txt
 COPY private-deps/multisample-analysis/requirements.txt ./multisample-analysis.requirements.txt
-COPY private-deps/rightsize/requirements.txt ./rightsize.requirements.txt
 
 RUN $CONDA_PIP install --user --no-warn-script-location -r celsius-utils.requirements.txt \
     && $CONDA_PIP install --user --no-warn-script-location -r ctxbio.requirements.txt \
     && $CONDA_PIP install --user --no-warn-script-location -r cesium3-requirements.txt \
-    && $CONDA_PIP install --user --no-warn-script-location -r multisample-analysis.requirements.txt \
-    && $CONDA_PIP install --user --no-warn-script-location -r rightsize.requirements.txt
+    && $CONDA_PIP install --user --no-warn-script-location -r multisample-analysis.requirements.txt
 
 COPY private-deps/celsius-utils/ctxcommon ./ctxcommon
 COPY private-deps/ctxbio/ctxbio ./ctxbio
@@ -57,10 +57,13 @@ COPY private-deps/multisample-analysis/sc_analysis ./sc_analysis
 COPY private-deps/multisample-analysis/scripts ./scripts
 COPY --chown=celsiustx private-deps/multisample-analysis/test ./test
 
+COPY private-deps/rightsize/requirements.txt ./rightsize.requirements.txt
+RUN $CONDA_PIP install --user --no-warn-script-location -r rightsize.requirements.txt
+
 COPY private-deps/rightsize/rightsize ./rightsize
 
 ENV PATH="/home/celsiustx/.local/bin:${PATH}"
-ENV PYTHONPATH "${PYTHONPATH}:."
+ENV PYTHONPATH "${PYTHONPATH}:.:prefect/server/src"
 
 RUN jupyter contrib nbextension install --user
 
@@ -69,8 +72,8 @@ RUN jupyter contrib nbextension install --user
 ENV NUMBA_PARALLEL_DIAGNOSTICS=4
 
 # Patches
-COPY private-deps/rightsize/infrastructure/patch/execute.py .local/lib/python3.7/site-packages/prefect/cli/execute.py
-COPY private-deps/rightsize/infrastructure/patch/s3.py .local/lib/python3.7/site-packages/prefect/environments/storage/s3.py
+#COPY private-deps/rightsize/infrastructure/patch/execute.py .local/lib/python3.7/site-packages/prefect/cli/execute.py
+#COPY private-deps/rightsize/infrastructure/patch/s3.py .local/lib/python3.7/site-packages/prefect/environments/storage/s3.py
 
 #ENTRYPOINT ["python3", "-u", "-m", "infrastructure.docker.msa_entrypoint_wrapper"]
 

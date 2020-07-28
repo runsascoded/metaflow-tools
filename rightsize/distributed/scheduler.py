@@ -1,22 +1,22 @@
 PREFECT_COMPOSE_HOST = '10.72.112.29'
 class SchedulerResolver:
     clients = {
-        'client1':  {
-            'addr': '0.0.0.0:18786',
+        'scheduler_cpu':  {
+            'addr': f'{PREFECT_COMPOSE_HOST}:18786',
             'attrs' : {
                 'processor_type': 'cpu',
                 'branch': 'master',
             }
         },
-        'client2': {
-            'addr': '0.0.0.0:28786',
-            'attrs': {
-                'processor_type': 'gpu',
-                'branch': 'feature/another_branch',
-            }
-        },
-        'client3': {
-            'addr': '0.0.0.0:28786',
+        # 'scheduler_gpu': {
+        #     'addr': '0.0.0.0:28786',
+        #     'attrs': {
+        #         'processor_type': 'gpu',
+        #         'branch': 'feature/another_branch',
+        #     }
+        # },
+        'scheduler_gpu': {
+            'addr': f'{PREFECT_COMPOSE_HOST}:28786',
             'attrs': {
                 'processor_type': 'gpu',
                 'branch': 'master'

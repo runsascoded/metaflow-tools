@@ -1,7 +1,9 @@
+import time
+
 import prefect
 
 from prefect import Flow, task, Client
-from prefect.engine.executors import DaskExecutor
+from prefect.engine.executors import DaskExecutor, LocalDaskExecutor
 from prefect.environments import LocalEnvironment
 from prefect.environments.storage import S3
 from rightsize.distributed.scheduler import PREFECT_COMPOSE_HOST
@@ -9,23 +11,15 @@ from rightsize.distributed.scheduler import PREFECT_COMPOSE_HOST
 # set_aws_credentials_env()
 prefect.context.config.cloud.graphql = 'http://10.72.112.29:4200/graphql'
 
-@task
+@task(log_stdout=True)
 def say_hello():
-    # def say_hello(t_name):
-    #     print(f'{datetime.now()}: workflow hello {t_name}', flush=True)
-    # print(f'workflow hello', flush=True)
-    # print(f'{datetime.now()}: workflow hello', flush=True)
-    # worker = get_worker()
-    # return f'done on {worker.name}, scheduler at {worker.scheduler.address}'
     return f'done'
 
-
-with Flow("Dask ECS Test") as flow:
-    # name_p = Parameter('name', default='world')
+with Flow("Dask ECS Test 2") as flow:
     say_hello()
 
 bucket = 'celsius-temp-data'
-key = 'datasciences/prefect_flows/dask_ecs_flow_test'
+key = 'datasciences/prefect_flows/dask_ecs_flow_test_2'
 flow.storage = S3(bucket, key=key)
 # image_name = f'{AWS_ACCOUNT_NUMBER}.dkr.ecr.us-east-1.amazonaws.com/rightsize_99_standard_py37:gdesmarais'
 # cluster_kwargs = {
@@ -52,6 +46,9 @@ executor = DaskExecutor(address=f'{PREFECT_COMPOSE_HOST}:38786')
 #     **task_definition_kwargs
 # )
 flow.environment = LocalEnvironment(executor=executor, labels=labels)
+
+# rv = flow.run()
+
 
 flow_id = flow.register(labels=labels)
 

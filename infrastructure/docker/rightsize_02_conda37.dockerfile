@@ -26,7 +26,7 @@ RUN /bin/bash ~/miniconda.sh -b -p /opt/conda && \
     find /opt/conda/ -follow -type f -name '*.js.map' -delete && \
     /opt/conda/bin/conda clean -afy
 
-ENV CONDA_PIP=/opt/conda/pip
+ENV CONDA_PIP=/opt/conda/bin/pip
 
 #RUN sh Miniconda3-latest-Linux-x86_64.sh -b
 #RUN ~/miniconda3/bin/conda init
