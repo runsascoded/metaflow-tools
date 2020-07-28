@@ -1,0 +1,10 @@
+blosc>=1.9.1
+bokeh>=2.1.1
+cytoolz>-0.10.1
+dask-cuda>=0.14.1
+lz4>=3.1.0
+jupyter-server-proxy>=1.5.0
+SecretStorage>=3.1.2
+tini>=3.0.1
+
+
