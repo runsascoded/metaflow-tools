@@ -44,3 +44,4 @@ nohup docker run \
 nohup docker run \
     --name ${CONTAINER_NAME_2} ${IMAGE_NAME} \
     dask-worker tcp://${EC2_IP}:${HOST_PORT_A} >> ${WORKER_LOGS} 2>&1 &
+

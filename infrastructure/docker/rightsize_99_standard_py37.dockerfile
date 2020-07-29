@@ -34,8 +34,6 @@ COPY private-deps/phenograph/phenograph ./phenograph
 # TODO - why in src?
 COPY private-deps/palantir/src/palantir ./palantir
 
-COPY private-deps/prefect ./prefect
-
 # Keep this at the end, as it is where most of the changes will happen
 COPY private-deps/celsius-utils/requirements.txt ./celsius-utils.requirements.txt
 COPY private-deps/ctxbio/requirements.txt ./ctxbio.requirements.txt
@@ -60,6 +58,7 @@ COPY --chown=celsiustx private-deps/multisample-analysis/test ./test
 COPY private-deps/rightsize/requirements.txt ./rightsize.requirements.txt
 RUN $CONDA_PIP install --user --no-warn-script-location -r rightsize.requirements.txt
 
+COPY private-deps/prefect ./prefect
 COPY private-deps/rightsize/rightsize ./rightsize
 
 ENV PATH="/home/celsiustx/.local/bin:${PATH}"

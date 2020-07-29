@@ -40,3 +40,4 @@ nohup docker run \
     -p ${HOST_PORT_B}:${CONTAINER_PORT_B} \
     --name ${CONTAINER_NAME} ${IMAGE_NAME} \
     dask-scheduler >> ${SCHEDULER_LOGS} 2>&1 &
+

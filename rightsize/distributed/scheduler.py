@@ -1,11 +1,13 @@
 PREFECT_COMPOSE_HOST = '10.72.112.29'
+
+
 class SchedulerResolver:
     clients = {
         'scheduler_cpu':  {
             'addr': f'{PREFECT_COMPOSE_HOST}:18786',
-            'attrs' : {
+            'attrs': {
                 'processor_type': 'cpu',
-                'branch': 'master',
+                'branch': 'prod',
             }
         },
         # 'scheduler_gpu': {
@@ -19,14 +21,14 @@ class SchedulerResolver:
             'addr': f'{PREFECT_COMPOSE_HOST}:28786',
             'attrs': {
                 'processor_type': 'gpu',
-                'branch': 'master'
+                'branch': 'prod'
             }
         },
     }
     @classmethod
     def find_by_attributes(cls, attr_set: dict = {}):
         default_attr_set = {
-            'branch': 'master'
+            'branch': 'prod'
         }
         search_attr_set = {**default_attr_set, **attr_set}
         the_client = None

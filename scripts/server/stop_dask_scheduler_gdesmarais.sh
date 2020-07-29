@@ -8,3 +8,4 @@ echo Killing dask scheduler container
 docker kill dask-scheduler-cpu-gdesmarais
 docker kill dask-scheduler-gpu-gdesmarais
 echo -e ${GREEN}All processes dead${NC}
+

@@ -8,3 +8,4 @@ echo Killing dask worker containers
 docker kill dask-worker-gdesmarais_1
 docker kill dask-worker-gdesmarais_2
 echo -e ${GREEN}All processes dead${NC}
+

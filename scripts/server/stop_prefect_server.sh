@@ -10,10 +10,10 @@ NC="\033[0m"
 # YML="${YML_DIR}/docker-compose.yml"
 # echo docker-compose downing as per config in ${YML}
 # cd ${YML_DIR}
-# docker-compose down
+# docker-compose down 
 
 echo Killing prefect server processes:
-echo
+echo 
 ps -f | egrep "prefect|docker-compose" | grep -v grep | grep -v $0
 pkill '^prefect$'
 RV=$?
@@ -38,7 +38,7 @@ RV=$?
 if [[ ${RV} != 0 ]]; then
   echo -e ${RED}Problem killing docker-compose - process not found${NC}
 else
-  echo
+  echo 
   echo Waiting for docker-compose processes to give up
   ps -f | grep " docker-compose up$" | grep -v grep
   RV=$?
@@ -52,3 +52,4 @@ else
 fi
 
 echo -e ${GREEN}All processes dead${NC}
+
