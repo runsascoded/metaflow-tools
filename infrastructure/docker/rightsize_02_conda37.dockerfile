@@ -5,7 +5,7 @@ FROM 386834949250.dkr.ecr.us-east-1.amazonaws.com/rightsize_01_base_cuda102_py37
 # https://github.com/ContinuumIO/docker-images/blob/master/miniconda3/debian/Dockerfile
 
 RUN echo bb2e3cedd2e78a8bb6872ab3ab5b1266a90f8c7004a22d8dc2ea5effeb6a439a > expected_hash.txt && \
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py37_4.8.3-Linux-x86_64.sh -O ~/miniconda.sh && \
     sha256sum < ~/miniconda.sh | cut -d\  -f1 > received_hash.txt
 
 RUN if ! cmp --silent expected_hash.txt received_hash.txt; then \
