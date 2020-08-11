@@ -9,7 +9,9 @@ RUN rm -rf /tmp/* \
     && apt-get update
 
 RUN groupadd -g 3000 celsiustx \
+    && groupadd --gid 2000 --force sharedproject_users \
     && useradd -m -u 3000 -g celsiustx celsiustx \
+    && usermod -aG  sharedproject_users celsiustx \
     && echo 'celsiustx ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers.d/90-rightsize \
     && chmod 440 "/etc/sudoers.d/90-rightsize"
 
