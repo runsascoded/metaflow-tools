@@ -45,7 +45,7 @@ RUN apt-get install -y \
 
 WORKDIR ..
 
-# Switch the system to use python3.6 by default - 2 is better than 1
+# Switch the system to use python3.7 by default - 2 is better than 1
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2
 

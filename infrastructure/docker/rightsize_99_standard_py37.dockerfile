@@ -19,6 +19,8 @@ RUN groupadd -g 3000 celsiustx \
 RUN mkdir -p /opt/prefect && chown celsiustx /opt/prefect
 USER celsiustx
 WORKDIR /home/celsiustx
+ENV HOME="/home/celsiustx"
+ENV CTX_HOME=$HOME
 
 COPY private-deps/scannotate/requirements.txt ./scannotate.requirements.txt
 COPY private-deps/tumortate/requirements.txt ./tumortate.requirements.txt
