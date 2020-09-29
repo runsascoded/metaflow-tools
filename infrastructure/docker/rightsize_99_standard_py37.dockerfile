@@ -65,8 +65,8 @@ RUN $CONDA_PIP install --user --no-warn-script-location -r rightsize.requirement
 COPY private-deps/prefect ./prefect
 COPY private-deps/rightsize/rightsize ./rightsize
 
-ENV PATH="/home/celsiustx/.local/bin:${PATH}"
-ENV PYTHONPATH "${PYTHONPATH}:.:prefect/server/src"
+ENV PATH="${HOME}/.local/bin:${PATH}"
+ENV PYTHONPATH "${PYTHONPATH}:${HOME}:prefect/server/src"
 
 RUN jupyter contrib nbextension install --user
 
