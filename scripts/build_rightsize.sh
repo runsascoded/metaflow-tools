@@ -12,16 +12,19 @@ fi
 if [[ -z ${CTX_BUILD_DIR} ]]; then
   me=`basename "$0"`
   CTX_BUILD_DIR=${HOME}/dev_build/${me}
-  if [[ ! -e ${CTX_BUILD_DIR} ]]; then
-    mkdir -p ${CTX_BUILD_DIR}
-  fi
 fi
 
 if [[ -n "$1" ]]; then
     DEPLOYMENT_ENV=$1
+        CTX_BUILD_DIR=${CTX_BUILD_DIR}/remote_repos
 else
     DEPLOYMENT_ENV=$(whoami)
+    CTX_BUILD_DIR=${CTX_BUILD_DIR}/local_repos
     LOCAL_REPOS=true
+fi
+
+if [[ ! -e ${CTX_BUILD_DIR} ]]; then
+  mkdir -p ${CTX_BUILD_DIR}
 fi
 
 CWD=$(pwd)
@@ -66,8 +69,8 @@ echo "" > .dockerignore
 CELSIUSTX_REPOS="celsius-utils multisample-analysis ctxbio cesium3 rightsize scannotate tumortate palantir phenograph"
 # TODO - possibly expose different branch options here
 BRANCH=develop
-ALT_BRANCH=master
-
+ALT_BRANCH1=main
+ALT_BRANCH2=master
 
 for R in ${CELSIUSTX_REPOS}
 do
@@ -97,8 +100,13 @@ do
     git clone git@github.com:celsiustx/${R}.git -b ${BRANCH} private-deps/${R}
     RV=$?
     if [[ ${RV} != 0 ]]; then
-      echo Trying instead ${R} from ${BRANCH}
-      git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH} private-deps/${R}
+      echo Trying instead ${R} from ${ALT_BRANCH1}
+      git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH1} private-deps/${R}
+      RV=$?
+    fi
+    if [[ ${RV} != 0 ]]; then
+      echo Trying instead ${R} from ${ALT_BRANCH2}
+      git clone git@github.com:celsiustx/${R}.git -b ${ALT_BRANCH2} private-deps/${R}
       RV=$?
     fi
   else
@@ -106,7 +114,13 @@ do
     bash -c "cd private-deps/${R} && git checkout ${BRANCH} && git pull"
     RV=$?
     if [[ ${RV} != 0 ]]; then
-      bash -c "cd private-deps/${R} && git checkout ${ALT_BRANCH} && git pull"
+      echo Trying instead ${R} from ${ALT_BRANCH1}
+      bash -c "cd private-deps/${R} && git checkout ${ALT_BRANCH1} && git pull"
+      RV=$?
+    fi
+    if [[ ${RV} != 0 ]]; then
+      echo Trying instead ${R} from ${ALT_BRANCH2}
+      bash -c "cd private-deps/${R} && git checkout ${ALT_BRANCH2} && git pull"
       RV=$?
     fi
   fi
