@@ -7,19 +7,35 @@ Parameters:
     Default: ml.t2.xlarge
     AllowedValues: ['ml.t2.large','ml.t2.xlarge','ml.t2.2xlarge']
     Description: 'Instance type for Sagemaker Notebook.'
-  VPCCidr: 
+  VPCId:
     Type: String
-    Default: 10.20.0.0/16
-    Description: 'CIDR for the Metaflow VPC'
-  Subnet1Cidr: 
+    Default: vpc-5eb4a127
+    Description: 'Deployment VPC ID'
+  VPCCIDRBlock:
     Type: String
-    Default: 10.20.0.0/24
-    Description: 'CIDR for Metaflow VPC Subnet 1'
-  Subnet2Cidr: 
+    Default: 10.72.0.0/16
+    Description: 'VPC CIDR Block'
+  Subnet1ID:
     Type: String
-    Default: 10.20.1.0/24
-    Description: 'CIDR for Metaflow VPC Subnet 2'
-  MaxVCPUBatch: 
+    Default: subnet-4f693443
+    Description: 'Deployment VPC Subnet 1'
+  Subnet2ID:
+    Type: String
+    Default: subnet-a0a8539f
+    Description: 'Deployment VPC Subnet 2'
+  Subnet3ID:
+    Type: String
+    Default: subnet-0addbba2a743cc04e
+    Description: 'Deployment VPC Subnet 3'
+  Subnet4ID:
+    Type: String
+    Default: subnet-06942ad07606a44b3
+    Description: 'Deployment VPC Subnet 4'
+  VPCSecurityGroup:
+    Type: String
+    Default: sg-2397c857
+    Description: 'VPC Security group, defaults to SG-internal-celsius-office'
+  MaxVCPUBatch:
     Type: Number
     Default: 64
     AllowedValues: [16,32,64,96]
@@ -42,7 +58,8 @@ Parameters:
     Description: 'Desired Starting VCPUs for Batch Compute Environment [0-16]'
   ComputeEnvInstanceTypes: 
     Type: CommaDelimitedList
-    Default: "c4.large,c4.xlarge,c4.2xlarge,c4.4xlarge,c4.8xlarge"
+#    Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,c6g.4xlarge,c6g.8xlarge,c6g.18xlarge,p2.xlarge,p2.8xlarge,p3.16xlarge"
+    Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,p2.xlarge,p2.8xlarge,p3.16xlarge"
     Description: "The instance types for the compute environment as a comma-separated list"
   CustomRole:
     Type: String
@@ -87,60 +104,6 @@ Conditions:
   EnableRole: !Equals [ !Ref CustomRole, 'true']
   EnableSagemaker: !Equals [ !Ref EnableSagemaker, 'true']
 Resources:
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      CidrBlock: !Ref VPCCidr
-  Subnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-         Fn::Select:
-         - 0
-         - Fn::GetAZs: {Ref: 'AWS::Region'}
-      VpcId: !Ref 'VPC'
-      CidrBlock: !Ref Subnet1Cidr
-      MapPublicIpOnLaunch: true
-  Subnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      AvailabilityZone:
-         Fn::Select:
-         - 1
-         - Fn::GetAZs: {Ref: 'AWS::Region'}
-      VpcId: !Ref 'VPC'
-      CidrBlock: !Ref Subnet2Cidr
-      MapPublicIpOnLaunch: true
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-  GatewayAttachement:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref 'VPC'
-      InternetGatewayId: !Ref 'InternetGateway'
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref 'VPC'
-  DefaultGateway:
-    Type: AWS::EC2::Route
-    DependsOn: GatewayAttachement
-    Properties:
-      RouteTableId: !Ref 'PublicRouteTable'
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref 'InternetGateway'
-  Subnet1RTA:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref Subnet1
-      RouteTableId: !Ref PublicRouteTable
-  Subnet2RTA:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref Subnet2
-      RouteTableId: !Ref PublicRouteTable
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -151,7 +114,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security Group for Fargate
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref VPCId
   NLBIngressRule:
    Type: 'AWS::EC2::SecurityGroupIngress'
    Properties:
@@ -160,7 +123,7 @@ Resources:
       IpProtocol: tcp
       FromPort: 8080
       ToPort: 8080
-      CidrIp: !GetAtt 'VPC.CidrBlock'
+      CidrIp: !Ref VPCCIDRBlock
   NLBIngressRuleDBMigrate:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
@@ -169,7 +132,7 @@ Resources:
         IpProtocol: tcp
         FromPort: 8082
         ToPort: 8082
-        CidrIp: !GetAtt 'VPC.CidrBlock'
+        CidrIp: !Ref VPCCIDRBlock
   FargateInternalRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -183,8 +146,11 @@ Resources:
       Scheme: internal
       Type: network
       Subnets:
-        - !Ref Subnet1
-        - !Ref Subnet2
+        - !Ref Subnet1ID
+        - !Ref Subnet2ID
+        - !Ref Subnet3ID
+        - !Ref Subnet4ID
+
   NLBListener:
     Type: AWS::ElasticLoadBalancingV2::Listener
     DependsOn:
@@ -196,6 +162,28 @@ Resources:
       LoadBalancerArn: !Ref 'NLB'
       Port: 80
       Protocol: TCP
+#      Port: 443
+#      Protocol: HTTPS
+#      SslPolicy: "ELBSecurityPolicy-2016-08"
+#      Certificates:
+#        - CertificateArn: arn:aws:acm:us-east-1:386834949250:certificate/9116fab3-2b69-4de2-8706-a8e9386c14f0
+#  NLBListenerHTTPClear:
+#    Type: "AWS::ElasticLoadBalancingV2::Listener"
+#    Properties:
+#      LoadBalancerArn: !Ref 'NLB'
+#      Port: 80
+#      Protocol: HTTP
+#      DefaultActions:
+#        - Order: 1
+#          RedirectConfig:
+#            Protocol: "HTTPS"
+#            Port: "443"
+#            Host: "#{host}"
+#            Path: "/#{path}"
+#            Query: "#{query}"
+#            StatusCode: "HTTP_301"
+#          Type: "redirect"
+
   NLBListenerDBMigrate:
     Type: AWS::ElasticLoadBalancingV2::Listener
     DependsOn:
@@ -369,8 +357,10 @@ Resources:
           SecurityGroups:
             - !Ref 'FargateSecurityGroup'
           Subnets:
-            - !Ref 'Subnet1'
-            - !Ref 'Subnet2'
+            - !Ref Subnet1ID
+            - !Ref Subnet2ID
+            - !Ref Subnet3ID
+            - !Ref Subnet4ID
       TaskDefinition: !Ref 'TaskDefinition'
       LoadBalancers:
         - ContainerName: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
@@ -454,10 +444,12 @@ Resources:
       Timeout: 900
       VpcConfig: 
         SecurityGroupIds: 
-          - !GetAtt VPC.DefaultSecurityGroup
-        SubnetIds: 
-          - !Ref Subnet1
-          - !Ref Subnet2
+          - !Ref VPCSecurityGroup
+        SubnetIds:
+          - !Ref Subnet1ID
+          - !Ref Subnet2ID
+          - !Ref Subnet3ID
+          - !Ref Subnet4ID
   NLBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -469,7 +461,7 @@ Resources:
       Port: !FindInMap ['ServiceInfo', 'ContainerPort', 'value']
       Protocol: TCP
       UnhealthyThresholdCount: 2
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref VPCId
   NLBTargetGroupDBMigrate:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -482,19 +474,21 @@ Resources:
       Port: 8082
       Protocol: TCP
       UnhealthyThresholdCount: 2
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref VPCId
   DBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: DBSubnetGroup for RDS instances
       SubnetIds:
-        - Ref: Subnet1
-        - Ref: Subnet2
+        - !Ref Subnet1ID
+        - !Ref Subnet2ID
+        - !Ref Subnet3ID
+        - !Ref Subnet4ID
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security Group for RDS
-      VpcId: !Ref 'VPC'
+      VpcId: !Ref VPCId
   PostgresIngressRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
@@ -552,7 +546,7 @@ Resources:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
       GroupDescription: 'Security Group for Sagemaker'
-      VpcId: !Ref VPC
+      VpcId: !Ref VPCId
       SecurityGroupIngress:
         - CidrIp: "0.0.0.0/0"
           IpProtocol: "TCP"
@@ -957,8 +951,8 @@ Resources:
       InstanceType: !Ref SagemakerInstance
       RoleArn: !GetAtt 'SageMakerExecutionRole.Arn'
       LifecycleConfigName: !GetAtt 'BasicNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName'
-      SubnetId: !Ref Subnet1
-      SecurityGroupIds: 
+      SubnetId: !Ref Subnet1ID
+      SecurityGroupIds:
         - !Ref 'SagemakerSecurityGroup'
   RandomString:
     Type: AWS::SecretsManager::Secret
@@ -1188,11 +1182,13 @@ Resources:
       ComputeResources:
         MaxvCpus: !Ref MaxVCPUBatch
         SecurityGroupIds:
-          - !GetAtt VPC.DefaultSecurityGroup
+          - !Ref VPCSecurityGroup
         Type: EC2
         Subnets:
-          - !Ref Subnet1
-          - !Ref Subnet2
+          - !Ref Subnet1ID
+          - !Ref Subnet2ID
+          - !Ref Subnet3ID
+          - !Ref Subnet4ID
         MinvCpus: !Ref MinVCPUBatch
         InstanceRole: !GetAtt 'ECSInstanceProfile.Arn'
         InstanceTypes: !Ref ComputeEnvInstanceTypes
