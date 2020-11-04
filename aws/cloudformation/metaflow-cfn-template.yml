@@ -978,6 +978,17 @@ Resources:
           Action:
             - sts:AssumeRole
       Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/SecretsManagerReadWrite
+        - arn:aws:iam::386834949250:policy/s3-celsius-external-fullaccess
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::386834949250:policy/S3-Celsius-temp
+        - arn:aws:iam::386834949250:policy/Celsius-ReadQuilt-celsius-registry
+        - arn:aws:iam::386834949250:policy/s3-celsius-sequencing-read
+        - arn:aws:iam::386834949250:policy/s3-celsius-internal-data
+        - arn:aws:iam::386834949250:policy/Celsius-WriteQuilt-celsius-registry
+        - arn:aws:iam::386834949250:policy/Celsius-batch-all-perms
+        - arn:aws:iam::386834949250:policy/Celsius-batch-logs-read
       Policies:
         - PolicyName: CustomS3ListBatch
           PolicyDocument:
