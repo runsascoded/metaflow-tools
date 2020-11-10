@@ -105,6 +105,37 @@ Conditions:
   EnableRole: !Equals [ !Ref CustomRole, 'true']
   EnableSagemaker: !Equals [ !Ref EnableSagemaker, 'true']
 Resources:
+  RightsizeMetaflowBatchLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: RightsizeMetaflowBatchLaunchTemplate
+      LaunchTemplateData:
+        UserData:
+          Fn::Base64: |
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+            MIME-Version: 1.0
+            --==BOUNDARY==
+            Content-Type: text/cloud-boothook; charset="us-ascii"
+            #cloud-boothook
+            #!/bin/bash
+            cloud-init-per once docker_options echo 'OPTIONS="${OPTIONS} --storage-opt dm.basesize=20G"' >> /etc/sysconfig/docker
+            --==BOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+            #!/bin/bash
+            # Set any ECS agent configuration options
+            echo ECS_CLUSTER=default>>/etc/ecs/ecs.config
+            echo ECS_IMAGE_CLEANUP_INTERVAL=60m >> /etc/ecs/ecs.config
+            echo ECS_IMAGE_MINIMUM_CLEANUP_AGE=60m >> /etc/ecs/ecs.config
+            --==BOUNDARY==--
+
+        BlockDeviceMappings:
+        -
+          DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeSize: 2000
+            VolumeType: "gp2"
+            DeleteOnTermination: true
+
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
@@ -1188,10 +1219,14 @@ Resources:
                   ec2:CreateAction: RunInstances
   ComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
+    DependsOn: RightsizeMetaflowBatchLaunchTemplate
     Properties:
       Type: MANAGED
       ServiceRole: !GetAtt 'BatchExecutionRole.Arn'
       ComputeResources:
+        LaunchTemplate:
+          LaunchTemplateName: RightsizeMetaflowBatchLaunchTemplate
+          Version: "$Latest"
         MaxvCpus: !Ref MaxVCPUBatch
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
