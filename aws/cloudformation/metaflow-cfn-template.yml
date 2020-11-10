@@ -37,29 +37,26 @@ Parameters:
     Description: 'VPC Security group, defaults to SG-internal-celsius-office'
   MaxVCPUBatch:
     Type: Number
-    Default: 64
-    AllowedValues: [16,32,64,96]
+    Default: 1024
     MinValue: 16
-    MaxValue: 96
+    MaxValue: 4096
     Description: 'Maximum VCPUs for Batch Compute Environment [16-96]'
   MinVCPUBatch: 
     Type: Number
-    Default: 8
+    Default: 0
     MinValue: 0
     MaxValue: 16
     AllowedValues: [0,2,4,8,16]
     Description: 'Maximum VCPUs for Batch Compute Environment [0-16]'
   DesiredVCPUBatch: 
     Type: Number
-    Default: 8
+    Default: 0
     MinValue: 0
     MaxValue: 16
     AllowedValues: [0,2,4,8,16]
     Description: 'Desired Starting VCPUs for Batch Compute Environment [0-16]'
   ComputeEnvInstanceTypes: 
     Type: CommaDelimitedList
-#    Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,c6g.4xlarge,c6g.8xlarge,c6g.18xlarge,p2.xlarge,p2.8xlarge,p3.16xlarge"
-#    Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,p2.xlarge,p2.8xlarge,p3.16xlarge"
     Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,p2.xlarge,p2.8xlarge"
     Description: "The instance types for the compute environment as a comma-separated list"
   CustomRole:
@@ -114,11 +111,15 @@ Resources:
           Fn::Base64: |
             Content-Type: multipart/mixed; boundary="==BOUNDARY=="
             MIME-Version: 1.0
+
             --==BOUNDARY==
             Content-Type: text/cloud-boothook; charset="us-ascii"
-            #cloud-boothook
-            #!/bin/bash
-            cloud-init-per once docker_options echo 'OPTIONS="${OPTIONS} --storage-opt dm.basesize=20G"' >> /etc/sysconfig/docker
+            # Do not use this block on AZL hosts, it assumes a devicemapper storage driver, and the
+            # AZL hosts are using overlay2.
+            # #cloud-boothook
+            # #!/bin/bash
+            # cloud-init-per once docker_options echo 'OPTIONS="${OPTIONS} --storage-opt dm.basesize=20G"' >> /etc/sysconfig/docker
+
             --==BOUNDARY==
             Content-Type: text/x-shellscript; charset="us-ascii"
             #!/bin/bash
@@ -194,27 +195,6 @@ Resources:
       LoadBalancerArn: !Ref 'NLB'
       Port: 80
       Protocol: TCP
-#      Port: 443
-#      Protocol: HTTPS
-#      SslPolicy: "ELBSecurityPolicy-2016-08"
-#      Certificates:
-#        - CertificateArn: arn:aws:acm:us-east-1:386834949250:certificate/9116fab3-2b69-4de2-8706-a8e9386c14f0
-#  NLBListenerHTTPClear:
-#    Type: "AWS::ElasticLoadBalancingV2::Listener"
-#    Properties:
-#      LoadBalancerArn: !Ref 'NLB'
-#      Port: 80
-#      Protocol: HTTP
-#      DefaultActions:
-#        - Order: 1
-#          RedirectConfig:
-#            Protocol: "HTTPS"
-#            Port: "443"
-#            Host: "#{host}"
-#            Path: "/#{path}"
-#            Query: "#{query}"
-#            StatusCode: "HTTP_301"
-#          Type: "redirect"
 
   NLBListenerDBMigrate:
     Type: AWS::ElasticLoadBalancingV2::Listener
@@ -1217,7 +1197,7 @@ Resources:
               Condition:
                 StringEquals:
                   ec2:CreateAction: RunInstances
-  ComputeEnvironment:
+  RightsizeMetaflowComputeEnvironment:
     Type: AWS::Batch::ComputeEnvironment
     DependsOn: RightsizeMetaflowBatchLaunchTemplate
     Properties:
@@ -1240,14 +1220,21 @@ Resources:
         InstanceRole: !GetAtt 'ECSInstanceProfile.Arn'
         InstanceTypes: !Ref ComputeEnvInstanceTypes
         DesiredvCpus: !Ref DesiredVCPUBatch
+        Ec2KeyPair: 'CompBio-00'
+        Tags:
+          Name: RightsizeMetaflowComputeResource
+          environment: prod
+          department: datasciences
+          owner: dataengineering
+          purpose: Metaflow
       State: ENABLED
   JobQueue:
-    DependsOn: ComputeEnvironment
+    DependsOn: RightsizeMetaflowComputeEnvironment
     Type: AWS::Batch::JobQueue
     Properties:
       ComputeEnvironmentOrder:
         - Order: 1
-          ComputeEnvironment: !Ref ComputeEnvironment
+          ComputeEnvironment: !Ref RightsizeMetaflowComputeEnvironment
       State: ENABLED
       Priority: 1
       JobQueueName: !Join [ "-", [ 'job-queue', !Ref 'AWS::StackName' ] ]
@@ -1364,6 +1351,17 @@ Resources:
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
+      Tags:
+        - Key: Name
+          Value: StepFunctionsStateDDB
+        - Key: environment
+          Value: prod
+        - Key: department
+          Value: datasciences
+        - Key: owner
+          Value: dataengineering
+        - Key: purpose
+          Value: MetaflowStepFunction
 Outputs:
   MetaflowDataStoreS3Url:
     Description: Amazon S3 URL for Metaflow DataStore [METAFLOW_DATASTORE_SYSROOT_S3]
