@@ -543,6 +543,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
+      BucketName: !Sub celsius-metaflow-${EnvironmentName}
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
