@@ -1051,7 +1051,7 @@ Resources:
                 - es:DescribeElasticsearchInstanceTypeLimits
                 - es:ListElasticsearchVersions
                 - es:DescribeElasticsearchDomain
-              Resource: +
+              Resource: '*'
         - PolicyName: DenyPresignedBatch
           PolicyDocument:
             Version: '2012-10-17'
