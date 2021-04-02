@@ -1018,13 +1018,40 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              Sid: ObjectAccessBatch
+            - Sid: ObjectAccessBatch
               Effect: Allow
               Action:
                 - s3:PutObject
                 - s3:GetObject
+                - es:GetCompatibleElasticsearchVersions
+                - es:ESCrossClusterGet
+                - es:ESHttpHead
+                - es:DescribeElasticsearchDomain
+                - es:ESHttpGet
+                - es:GetCompatibleElasticsearchVersions
+                - es:ListTags
+                - es:GetUpgradeStatus
+                - es:DescribeElasticsearchDomainConfig
+                - es:DescribeElasticsearchDomains
+                - es:GetUpgradeHistory
                 - s3:DeleteObject
-              Resource: !Join ['', [ !GetAtt 'MetaflowS3Bucket.Arn', '/*' ]]
+              Resource:
+                - arn:aws:es:*:386834949250:domain/*
+                - !Join ['', [ !GetAtt 'MetaflowS3Bucket.Arn', '/*' ]]
+            - Sid: ESAccessBatch
+              Effect: Allow
+              Action:
+                - es:DescribeReservedElasticsearchInstanceOfferings
+                - es:DescribeInboundCrossClusterSearchConnections
+                - es:DescribeReservedElasticsearchInstances
+                - es:ListDomainNames
+                - es:ListElasticsearchInstanceTypeDetails
+                - es:ListElasticsearchInstanceTypes
+                - es:DescribeOutboundCrossClusterSearchConnections
+                - es:DescribeElasticsearchInstanceTypeLimits
+                - es:ListElasticsearchVersions
+                - es:DescribeElasticsearchDomain
+              Resource: '*'
         - PolicyName: DenyPresignedBatch
           PolicyDocument:
             Version: '2012-10-17'
