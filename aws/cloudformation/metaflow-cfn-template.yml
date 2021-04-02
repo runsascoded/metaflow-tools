@@ -1024,7 +1024,16 @@ Resources:
                 - s3:PutObject
                 - s3:GetObject
                 - es:GetCompatibleElasticsearchVersions
+                - es:ESCrossClusterGet
+                - es:ESHttpHead
+                - es:DescribeElasticsearchDomain
+                - es:ESHttpGet
+                - es:GetCompatibleElasticsearchVersions
+                - es:ListTags
+                - es:GetUpgradeStatus
+                - es:DescribeElasticsearchDomainConfig
                 - es:DescribeElasticsearchDomains
+                - es:GetUpgradeHistory
                 - s3:DeleteObject
               Resource:
                 - arn:aws:es:*:386834949250:domain/*
