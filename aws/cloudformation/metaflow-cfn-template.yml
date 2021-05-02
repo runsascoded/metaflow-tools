@@ -117,14 +117,6 @@ Resources:
             MIME-Version: 1.0
 
             --==BOUNDARY==
-            Content-Type: text/cloud-boothook; charset="us-ascii"
-            # Do not use this block on AZL hosts, it assumes a devicemapper storage driver, and the
-            # AZL hosts are using overlay2.
-            # #cloud-boothook
-            # #!/bin/bash
-            # cloud-init-per once docker_options echo 'OPTIONS="${OPTIONS} --storage-opt dm.basesize=20G"' >> /etc/sysconfig/docker
-
-            --==BOUNDARY==
             Content-Type: text/x-shellscript; charset="us-ascii"
             #!/bin/bash
             # Set any ECS agent configuration options
@@ -137,8 +129,10 @@ Resources:
         -
           DeviceName: "/dev/xvda"
           Ebs:
-            VolumeSize: 2000
-            VolumeType: "gp2"
+            # See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
+            VolumeSize: 2500
+            VolumeType: "gp3"
+            Iops: 16000
             DeleteOnTermination: true
 
   ECSCluster:
@@ -547,7 +541,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub celsius-metaflow-${EnvironmentName}
+      BucketName: !Sub celsius-metaflow-${EnvironmentName}-2
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
