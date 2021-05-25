@@ -57,7 +57,7 @@ Parameters:
     Description: 'Desired Starting VCPUs for Batch Compute Environment [0-16]'
   ComputeEnvInstanceTypes: 
     Type: CommaDelimitedList
-    Default: "c5.4xlarge,c5.9xlarge,c5.18xlarge,g4dn.xlarge,g4dn.2xlarge,g4dn.4xlarge,g4dn.8xlarge,g4dn.12xlarge,g4dn.16xlarge"
+    Default: "r5a.16xlarge,c5.4xlarge,c5.9xlarge,c5.18xlarge,g4dn.xlarge,g4dn.2xlarge,g4dn.4xlarge,g4dn.8xlarge,g4dn.12xlarge,g4dn.16xlarge"
     Description: "The instance types for the compute environment as a comma-separated list"
   CustomRole:
     Type: String
