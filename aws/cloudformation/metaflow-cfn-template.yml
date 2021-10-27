@@ -113,20 +113,18 @@ Resources:
       LaunchTemplateData:
         UserData:
           Fn::Base64: |
-            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
             MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
 
             --==BOUNDARY==
             Content-Type: text/x-shellscript; charset="us-ascii"
+            
             #!/bin/bash
-            # Set any ECS agent configuration options
-            # see https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-agent-config.html
-            echo ECS_CLUSTER=default >> /etc/ecs/ecs.config
-            echo ECS_DISABLE_IMAGE_CLEANUP=false >> /etc/ecs/ecs.config
             echo ECS_IMAGE_CLEANUP_INTERVAL=60m >> /etc/ecs/ecs.config
             echo ECS_IMAGE_MINIMUM_CLEANUP_AGE=60m >> /etc/ecs/ecs.config
-            echo ECS_CONTAINER_STOP_TIMEOUT=5m >> /etc/ecs/ecs.config
-            echo ECS_CONTAINER_START_TIMEOUT=10 >> /etc/ecs/ecs.config
+            echo ECS_CONTAINER_STOP_TIMEOUT=10m >> /etc/ecs/ecs.config
+            echo ECS_CONTAINER_START_TIMEOUT=10m >> /etc/ecs/ecs.config
+
             --==BOUNDARY==--
 
         BlockDeviceMappings:
