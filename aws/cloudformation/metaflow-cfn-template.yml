@@ -78,6 +78,14 @@ Parameters:
     Type: String
     Default: 'prod'
     Description: 'Name of the deployment environment'
+  StackTag:
+    Type: String
+    Default: ''
+    Description: 'Tag identifying this stack from others'
+  StackTagDash:
+    Type: String
+    Default: ''
+    Description: 'Tag identifying this stack from others, with a leading -'
 
 Mappings:
   ServiceInfo:
@@ -109,7 +117,7 @@ Resources:
   RightsizeMetaflowBatchLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
-      LaunchTemplateName: RightsizeMetaflowBatchLaunchTemplate
+      LaunchTemplateName: !Sub RightsizeMetaflowBatchLaunchTemplate${StackTagDash}
       LaunchTemplateData:
         UserData:
           Fn::Base64: |
@@ -512,7 +520,7 @@ Resources:
   RDSMasterInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBName: 'metaflow'
+      DBName: !Sub metaflow${StackTag}
       AllocatedStorage: 20
       DBInstanceClass: 'db.t2.small'
       DeleteAutomatedBackups: 'true'
@@ -543,7 +551,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub celsius-metaflow-${Environment}
+      BucketName: !Sub celsius-metaflow-${Environment}${StackTagDash}
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -612,7 +620,7 @@ Resources:
               Effect: Allow
               Action:
                 - logs:CreateLogStream
-              Resource: 
+              Resource:
                 - !Join [ "", [ 'arn:aws:logs:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':log-group:/aws/batch/job:log-stream:*' ] ]
                 - !Join [ "", [ 'arn:aws:logs:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':log-group:/aws/sagemaker/NotebookInstances:log-stream:*' ] ]
             - Sid: LogEvents
@@ -620,13 +628,13 @@ Resources:
               Action:
                 - logs:PutLogEvents
                 - logs:GetLogEvents
-              Resource: 
+              Resource:
                 - !Join [ "", [ 'arn:aws:logs:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':log-group:/aws/sagemaker/NotebookInstances:log-stream:', !Ref 'AWS::StackName', '-NotebookInstance-', '{{resolve:secretsmanager:', !Ref RandomString, ':SecretString:password}}', '/jupyter.log' ] ]
                 - !Join [ "", [ 'arn:aws:logs:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':log-group:/aws/sagemaker/NotebookInstances:log-stream:', !Ref 'AWS::StackName', '-NotebookInstance-', '{{resolve:secretsmanager:', !Ref RandomString, ':SecretString:password}}', '/LifecycleConfigOnCreate' ] ]
                 - !Join [ "", [ 'arn:aws:logs:', !Ref 'AWS::Region', ':', !Ref 'AWS::AccountId', ':log-group:/aws/batch/job:log-stream:job-queue-' ] ]
             - Sid: LogGroup
               Effect: Allow
-              Action: 
+              Action:
                 - logs:DescribeLogGroups
                 - logs:DescribeLogStreams
                 - logs:CreateLogGroup
@@ -637,7 +645,7 @@ Resources:
             Statement:
               Sid: SageMakerNotebook
               Effect: "Allow"
-              Action: 
+              Action:
                 - "sagemaker:DescribeNotebook*"
                 - "sagemaker:StartNotebookInstance"
                 - "sagemaker:StopNotebookInstance"
