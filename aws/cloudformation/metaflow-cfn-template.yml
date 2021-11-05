@@ -74,7 +74,7 @@ Parameters:
     Default: 'true'
     AllowedValues: ['false', 'true']
     Description: 'Enable Sagemaker Notebooks'
-  EnvironmentName:
+  Environment:
     Type: String
     Default: 'prod'
     Description: 'Name of the deployment environment'
@@ -543,7 +543,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
-      BucketName: !Sub celsius-metaflow-${EnvironmentName}-2
+      BucketName: !Sub celsius-metaflow-${Environment}
       AccessControl: Private
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -1231,6 +1231,7 @@ Resources:
     Properties:
       Type: MANAGED
       ServiceRole: !GetAtt 'BatchExecutionRole.Arn'
+      ComputeEnvironmentName: !Sub RSMetaflowCE_${Environment}
       ComputeResources:
         LaunchTemplate:
           LaunchTemplateName: RightsizeMetaflowBatchLaunchTemplate
@@ -1251,7 +1252,7 @@ Resources:
         Ec2KeyPair: 'CompBio-00'
         Tags:
           Name: RightsizeMetaflowComputeResource
-          environment: prod
+          environment: !Ref Environment
           department: datasciences
           owner: dataengineering
           purpose: Metaflow
@@ -1383,7 +1384,7 @@ Resources:
         - Key: Name
           Value: StepFunctionsStateDDB
         - Key: environment
-          Value: prod
+          Value: !Ref Environment
         - Key: department
           Value: datasciences
         - Key: owner
