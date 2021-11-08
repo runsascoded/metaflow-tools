@@ -86,11 +86,12 @@ Parameters:
     Type: String
     Default: ''
     Description: 'Tag identifying this stack from others, with a leading -'
+  ServiceName:
+    Type: String
+    Default: 'metadata-service-v2'
 
 Mappings:
   ServiceInfo:
-    StackName: 
-      value: 'metaflow-infrastructure'
     ServiceName:
       value: 'metadata-service-v2'
     ImageUrl:
@@ -128,6 +129,7 @@ Resources:
             Content-Type: text/x-shellscript; charset="us-ascii"
             
             #!/bin/bash
+            echo ECS_DISABLE_IMAGE_CLEANUP=true >> /etc/ecs/ecs.config
             echo ECS_IMAGE_CLEANUP_INTERVAL=60m >> /etc/ecs/ecs.config
             echo ECS_IMAGE_MINIMUM_CLEANUP_AGE=60m >> /etc/ecs/ecs.config
             echo ECS_CONTAINER_STOP_TIMEOUT=10m >> /etc/ecs/ecs.config
@@ -324,7 +326,7 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
+      Family: !Join [ "", [ !Ref ServiceName, !Ref StackTagDash ] ]
       Cpu: !FindInMap ['ServiceInfo', 'ContainerCpu', 'value']
       Memory: !FindInMap ['ServiceInfo', 'ContainerMemory', 'value']
       NetworkMode: awsvpc
@@ -333,7 +335,7 @@ Resources:
       ExecutionRoleArn: !Ref 'ECSTaskExecutionRole'
       TaskRoleArn: !GetAtt 'MetadataSvcECSTaskRole.Arn'
       ContainerDefinitions:
-        - Name: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
+        - Name: !Join [ "", [ !Ref ServiceName, !Ref StackTagDash ] ]
           Environment:
             - Name: "MF_METADATA_DB_HOST"
               Value: !GetAtt 'RDSMasterInstance.Endpoint.Address'
@@ -344,7 +346,7 @@ Resources:
             - Name: "MF_METADATA_DB_PSWD"
               Value: !Join ['', ['{{resolve:secretsmanager:', !Ref MyRDSSecret, ':SecretString:password}}' ]]
             - Name: "MF_METADATA_DB_NAME"
-              Value: "metaflow"
+              Value: !Sub "metaflow${StackTag}"
           Cpu: !FindInMap ['ServiceInfo', 'ContainerCpu', 'value']
           Memory: !FindInMap ['ServiceInfo', 'ContainerMemory', 'value']
           Image: !FindInMap ['ServiceInfo', 'ImageUrl', 'value']
@@ -354,17 +356,17 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Join ['', ['/ecs/', !Ref 'AWS::StackName', '-', !FindInMap ['ServiceInfo', 'ServiceName', 'value']]]
+              awslogs-group: !Join ['', ['/ecs/', !Ref 'AWS::StackName', '-', !Ref ServiceName, !Ref StackTagDash]]
               awslogs-region: !Ref 'AWS::Region'
               awslogs-stream-prefix: 'ecs'
   MetadataServiceLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Join ['', ['/ecs/', !Ref 'AWS::StackName', '-', !FindInMap ['ServiceInfo', 'ServiceName', 'value']]]
+      LogGroupName: !Join ['', ['/ecs/', !Ref 'AWS::StackName', '-', !Ref ServiceName, !Ref StackTagDash]]
   ECSFargateService:
     Type: AWS::ECS::Service
     Properties:
-      ServiceName: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
+      ServiceName: !Join [ "", [ !Ref ServiceName, !Ref StackTagDash ] ]
       Cluster: !Ref 'ECSCluster'
       LaunchType: FARGATE
       DeploymentConfiguration:
@@ -383,10 +385,10 @@ Resources:
             - !Ref Subnet4ID
       TaskDefinition: !Ref 'TaskDefinition'
       LoadBalancers:
-        - ContainerName: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
+        - ContainerName: !Join [ "", [ !Ref ServiceName, !Ref StackTagDash ] ]
           ContainerPort: !FindInMap ['ServiceInfo', 'ContainerPort', 'value']
           TargetGroupArn: !Ref 'NLBTargetGroup'
-        - ContainerName: !FindInMap ['ServiceInfo', 'ServiceName', 'value']
+        - ContainerName: !Join [ "", [ !Ref ServiceName, !Ref StackTagDash ] ]
           ContainerPort: 8082
           TargetGroupArn: !Ref 'NLBTargetGroupDBMigrate'
   LambdaECSExecuteRole:
@@ -1259,7 +1261,7 @@ Resources:
         DesiredvCpus: !Ref DesiredVCPUBatch
         Ec2KeyPair: 'CompBio-00'
         Tags:
-          Name: RightsizeMetaflowComputeResource
+          Name: !Sub RightsizeMetaflowComputeResource ${StackTag}
           environment: !Ref Environment
           department: datasciences
           owner: dataengineering
