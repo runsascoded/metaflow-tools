@@ -92,8 +92,6 @@ Parameters:
 
 Mappings:
   ServiceInfo:
-    ServiceName:
-      value: 'metadata-service-v2'
     ImageUrl:
       value: 'netflixoss/metaflow_metadata_service'
     ContainerPort:
