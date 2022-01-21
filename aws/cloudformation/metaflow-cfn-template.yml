@@ -132,6 +132,7 @@ Resources:
             echo ECS_IMAGE_MINIMUM_CLEANUP_AGE=60m >> /etc/ecs/ecs.config
             echo ECS_CONTAINER_STOP_TIMEOUT=10m >> /etc/ecs/ecs.config
             echo ECS_CONTAINER_START_TIMEOUT=10m >> /etc/ecs/ecs.config
+            echo ECS_ENGINE_TASK_CLEANUP_WAIT_DURATION=7d >> /etc/ecs/ecs.config
 
             --==BOUNDARY==--
 
