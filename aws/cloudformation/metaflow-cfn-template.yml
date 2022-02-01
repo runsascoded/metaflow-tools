@@ -125,7 +125,7 @@ Resources:
 
             --==BOUNDARY==
             Content-Type: text/x-shellscript; charset="us-ascii"
-            
+
             #!/bin/bash
             echo ECS_DISABLE_IMAGE_CLEANUP=true >> /etc/ecs/ecs.config
             echo ECS_IMAGE_CLEANUP_INTERVAL=60m >> /etc/ecs/ecs.config
@@ -1243,7 +1243,7 @@ Resources:
       ComputeEnvironmentName: !Sub RSMetaflowCE_${Environment}
       ComputeResources:
         LaunchTemplate:
-          LaunchTemplateName: RightsizeMetaflowBatchLaunchTemplate
+          LaunchTemplateId: !Ref RightsizeMetaflowBatchLaunchTemplate
           Version: "$Latest"
         MaxvCpus: !Ref MaxVCPUBatch
         SecurityGroupIds:
