@@ -1019,6 +1019,44 @@ Resources:
               Effect: Allow
               Action: s3:ListBucket
               Resource: !GetAtt 'MetaflowS3Bucket.Arn'
+        - PolicyName: CustomESRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: ESDomainRead
+              Effect: Allow
+              Action:
+                - es:ESCrossClusterGet
+                - es:ESHttpHead
+                - es:DescribeElasticsearchDomain
+                - es:ESHttpGet
+                - es:GetCompatibleElasticsearchVersions
+                - es:ListTags
+                - es:GetUpgradeStatus
+                - es:DescribeElasticsearchDomainConfig
+                - es:DescribeElasticsearchDomains
+                - es:GetUpgradeHistory
+              Resource: arn:aws:es:*:386834949250:domain/*
+            - Sid: ESBroadRead
+              Effect: Allow
+              Action:
+                - es:DescribeReservedElasticsearchInstanceOfferings
+                - es:DescribeInboundCrossClusterSearchConnections
+                - es:DescribeReservedElasticsearchInstances
+                - es:ListDomainNames
+                - es:ListElasticsearchInstanceTypeDetails
+                - es:ListElasticsearchInstanceTypes
+                - es:DescribeOutboundCrossClusterSearchConnections
+                - es:DescribeElasticsearchInstanceTypeLimits
+                - es:ListElasticsearchVersions
+              Resource: '*'
+            - Sid: ESDomainLimitedWrite
+              Effect: Allow
+              Action:
+                - es:ESHttpPost
+                - es:ESHttpPut
+                - es:ESHttpDelete
+              Resource: arn:aws:es:*:386834949250:domain/*
         - PolicyName: CustomS3Batch
           PolicyDocument:
             Version: '2012-10-17'
