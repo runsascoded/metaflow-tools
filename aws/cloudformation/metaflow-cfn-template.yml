@@ -1278,7 +1278,7 @@ Resources:
     Properties:
       Type: MANAGED
       ServiceRole: !GetAtt 'BatchExecutionRole.Arn'
-      ComputeEnvironmentName: !Sub RSMetaflowCE_${Environment}
+      ComputeEnvironmentName: !Sub RSMetaflowCE2_${Environment}
       ComputeResources:
         LaunchTemplate:
           LaunchTemplateId: !Ref RightsizeMetaflowBatchLaunchTemplate
