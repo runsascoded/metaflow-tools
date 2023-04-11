@@ -1283,6 +1283,7 @@ Resources:
         LaunchTemplate:
           LaunchTemplateId: !Ref RightsizeMetaflowBatchLaunchTemplate
           Version: "$Latest"
+        UpdateToLatestImageVersion: true
         MaxvCpus: !Ref MaxVCPUBatch
         SecurityGroupIds:
           - !Ref VPCSecurityGroup
